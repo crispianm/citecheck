@@ -24,6 +24,7 @@ VENUES = [
     ("ICML", r"\bicml\b|international conference on machine learning"),
     ("AAAI", r"\baaai\b|advancement of artificial intelligence"),
     ("IJCAI", r"ijcai|joint conference on artificial intelligence"),
+    ("EACL", r"\beacl\b|european chapter of the association"),
     ("ACL-Findings", r"findings"),
     ("EMNLP", r"\bemnlp\b|empirical methods in natural language"),
     ("NAACL", r"naacl|north american chapter"),
@@ -50,9 +51,22 @@ VENUES = [
     ("ICME", r"\bicme\b|multimedia and expo"),
     ("ACMMM", r"acm multimedia|acm international conference on multimedia|\bacm mm\b"),
     ("CHI", r"\bchi\b|human factors in computing"),
+    ("ACCV", r"\baccv\b|asian conference on computer vision"),
+    ("SIGGRAPH Asia", r"siggraph asia"),  # before SIGGRAPH
+    ("SIGGRAPH", r"siggraph"),
+    ("Eurographics", r"eurographics"),
+    ("CoRL", r"\bcorl\b|conference on robot learning"),
+    ("RSS", r"\brss\b|robotics: science and systems"),
+    ("AISTATS", r"aistats|artificial intelligence and statistics"),
+    ("UAI", r"\buai\b|uncertainty in artificial intelligence"),
+    ("COLING", r"coling|international conference on computational linguistics"),
+    ("ISMAR", r"\bismar\b|mixed and augmented reality"),
+    ("IEEE VR", r"\bieee vr\b|^vr\b|virtual reality and 3d user interfaces"),
+    ("CVIU", r"\bcviu\b|comput\.? vis\.? image underst|computer vision and image understanding"),
+    ("PR", r"^pattern recognition$|\bpattern recognit\.?$"),  # strict: not Pattern Recognition Letters / CVPR
 ]
 KNOWN = {n for n, _ in VENUES}
-JOURNALS = {"TPAMI", "TOG", "TCSVT", "TMM", "RA-L", "TMLR", "JMLR", "TIP", "IJCV", "TACL"}
+JOURNALS = {"CVIU", "PR", "TPAMI", "TOG", "TCSVT", "TMM", "RA-L", "TMLR", "JMLR", "TIP", "IJCV", "TACL"}
 
 
 def canon(v):
@@ -312,9 +326,13 @@ def pages_close(a, b, tol=3):
     return len(na) == len(nb) and 0 < len(na) <= 2 and all(abs(int(x) - int(y)) <= tol for x, y in zip(na, nb))
 
 
-def venue_same(bv, rv, source):
+def venue_same(bv, rv, source, braw="", rraw=""):
     if bv == rv:
         return True
+    acr = re.sub(r"\s*\(\d+\)$", "", rraw or "").strip()  # DBLP 'ACCV (3)'
+    if rv not in KNOWN and re.fullmatch(r"[A-Za-z][A-Za-z0-9\-]{1,9}", acr) and \
+            re.search(r"(?<![A-Za-z0-9])" + re.escape(acr) + r"(?![A-Za-z0-9])", detex(braw), re.I):
+        return True  # unknown short acronym that appears as a word in the bib venue
     if source in ("crossref", "openalex") and bv not in KNOWN and rv not in KNOWN and bv and rv:
         # journal names vary a lot (abbreviations); accept near matches from these sources
         return bv in rv or rv in bv or SequenceMatcher(None, bv, rv).ratio() >= 0.75
@@ -340,7 +358,7 @@ def compare(e, rec, cr):
     bv = canon(braw)
     if rec["venue"] and bv == "arXiv" and rec["venue"] != "arXiv":
         published = f"venue: cited as arXiv, published at {rec['venue']} ({rec['raw_venue']})"
-    elif rec["venue"] and not venue_same(bv, rec["venue"], rec["source"]):
+    elif rec["venue"] and not venue_same(bv, rec["venue"], rec["source"], braw, rec["raw_venue"]):
         diffs.append(f"venue: bib '{detex(braw)}' vs '{rec['raw_venue'] or rec['venue']}'")
     if bv == "arXiv":
         bid = re.search(r"(\d{4}\.\d{4,5})", e.get("journal") or e.get("eprint") or "")

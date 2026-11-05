@@ -217,5 +217,38 @@ class Item25DoiAndArxivId(Base):
         self.assertEqual(urls, [])
 
 
+class Item26Venues(unittest.TestCase):
+    def test_written_out_vs_dblp_acronym(self):
+        for long_, short in [("Asian Conference on Computer Vision (ACCV)", "ACCV"),
+                             ("ACM SIGGRAPH Asia 2020 Conference Papers", "SIGGRAPH Asia"),
+                             ("ACM SIGGRAPH", "SIGGRAPH"), ("Eurographics Symposium on Rendering", "Eurographics"),
+                             ("Conference on Robot Learning", "CoRL"), ("Robotics: Science and Systems", "RSS"),
+                             ("International Conference on Artificial Intelligence and Statistics", "AISTATS"),
+                             ("Uncertainty in Artificial Intelligence", "UAI"), ("COLING 2020", "COLING"),
+                             ("Conference of the European Chapter of the Association for Computational Linguistics", "EACL"),
+                             ("IEEE International Symposium on Mixed and Augmented Reality", "ISMAR"),
+                             ("Computer Vision and Image Understanding", "Comput. Vis. Image Underst."),
+                             ("Pattern Recognition", "Pattern Recognit.")]:
+            self.assertEqual(match.canon(long_), match.canon(short), (long_, short))
+
+    def test_distinct_venues_stay_distinct(self):  # controls
+        self.assertNotEqual(match.canon("SIGGRAPH Asia"), match.canon("SIGGRAPH"))
+        self.assertEqual(match.canon("IEEE Conference on Computer Vision and Pattern Recognition"), "CVPR")
+        self.assertEqual(match.canon("IEEE Trans. Pattern Anal. Mach. Intell."), "TPAMI")
+        self.assertNotEqual(match.canon("Pattern Recognition Letters"), match.canon("Pattern Recognit."))
+
+    def rec(self, raw):
+        return {"title": "T", "venue": match.canon(raw), "raw_venue": raw, "source": "dblp", "key": "conf/x/Y",
+                "year": 2020, "pages": None, "volume": None, "doi": None, "authors": []}
+
+    def cmp(self, bib_venue, raw):
+        e = {"type": "inproceedings", "title": "T", "booktitle": bib_venue, "year": "2020", "author": ""}
+        return match.compare(e, self.rec(raw), None)[0]
+
+    def test_unknown_acronym_whole_word(self):
+        self.assertEqual(self.cmp("Symposium on Foo Things (FOOS)", "FOOS (2)"), [])
+        self.assertTrue(self.cmp("Symposium on Foo Things (FOO)", "FOOS (2)"))  # control: not a whole word
+
+
 if __name__ == "__main__":
     unittest.main()
