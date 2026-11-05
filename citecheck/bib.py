@@ -99,7 +99,7 @@ def parse_bib(text):
 
 
 def bib_surnames(author_field):
-    names = [a.strip() for a in re.split(r"\s+and\s+", detex(author_field)) if a.strip()]
+    names = [a.strip() for a in re.split(r"\s+and\s+", detex(author_field), flags=re.I) if a.strip()]
     truncated = bool(names) and names[-1].lower() == "others"
     if truncated:
         names = names[:-1]
@@ -118,5 +118,12 @@ def name_surname(full):
 
 
 def surname_match(a, b):
-    a, b = fold(a), fold(b)
-    return bool(a) and (a == b or a.endswith(b) or b.endswith(a))
+    """Same surname after folding; one may also be the other's tail at a word/hyphen/apostrophe
+    boundary (van den Berg / Berg, Al-Hashimi / Hashimi), but not a bare suffix (Li / Ali)."""
+    if not fold(a) or not fold(b):
+        return False
+    if fold(a) == fold(b):
+        return True
+    ta, tb = [[fold(t) for t in re.split(r"[\s\-'\u2019]+", x) if fold(t)] for x in (a, b)]
+    short, long_ = sorted((ta, tb), key=len)
+    return len(short) < len(long_) and long_[-len(short):] == short

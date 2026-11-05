@@ -60,5 +60,26 @@ class Item15DotlessI(unittest.TestCase):
         self.assertEqual(bib.detex("\\v{\\j}"), "\u01f0")
 
 
+class Item16Surnames(unittest.TestCase):
+    def test_and_case_insensitive(self):
+        self.assertEqual(bib.bib_surnames("A Smith AND B Jones And C Lee")[0], ["Smith", "Jones", "Lee"])
+
+    def test_empty_matches_nothing(self):
+        self.assertFalse(bib.surname_match("Smith", ""))
+        self.assertFalse(bib.surname_match("", "Smith"))
+
+    def test_short_suffix_not_a_match(self):
+        self.assertFalse(bib.surname_match("Li", "Ali"))
+        self.assertFalse(bib.surname_match("Yu", "Ryu"))
+        self.assertFalse(bib.surname_match("Ali", "Li"))
+
+    def test_particles_still_match(self):  # controls
+        self.assertTrue(bib.surname_match("van den Berg", "Berg"))
+        self.assertTrue(bib.surname_match("Berg", "van den Berg"))
+        self.assertTrue(bib.surname_match("Al-Hashimi", "Hashimi"))
+        self.assertTrue(bib.surname_match("M\u00fcller", "Muller"))
+        self.assertTrue(bib.surname_match("McDonald", "Mc Donald"))
+
+
 if __name__ == "__main__":
     unittest.main()
