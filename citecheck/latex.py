@@ -5,6 +5,7 @@ from pathlib import Path
 _CITE = re.compile(r"\\([A-Za-z]*cite[A-Za-z]*|nocite)\*?((?:\s*(?:\[[^\]]*\]|\([^)]*\)))*)\s*((?:\{[^{}]*\}\s*)+)")
 _AUX = re.compile(r"\\citation\{([^}]*)\}|\\abx@aux@cite\{[^}]*\}\{([^}]*)\}")
 _INPUT = re.compile(r"\\(?:input|include|subfile|subfileinclude)\s*\{([^}]*)\}")
+_AUX_INPUT = re.compile(r"\\@input\{([^}]*)\}")
 _NOT_CITES = {"citestyle", "citeindexfalse"}
 
 
@@ -58,14 +59,35 @@ def _tex_files(path):
     return seen
 
 
+def _stale(auxes, tex):
+    """True if some .tex was edited after the newest .aux was written."""
+    newest = max(a.stat().st_mtime for a in auxes)
+    return any(t.stat().st_mtime > newest for t in tex)
+
+
+def _aux_closure(root, auxes):
+    """The .aux files plus those they pull in with \\@input (chapter auxes in subfolders)."""
+    seen, todo = [], list(auxes)
+    while todo:
+        a = todo.pop()
+        if a in seen:
+            continue
+        seen.append(a)
+        for n in _AUX_INPUT.findall(a.read_text(errors="replace")):
+            for cand in (a.parent / n, root / n):
+                if cand.is_file():
+                    todo.append(cand)
+                    break
+    return seen
+
+
 def cited_keys(path):
     """Set of cited keys; None means \\nocite{*} (everything is cited)."""
     p = Path(path)
     if p.is_dir():
-        auxes = sorted(p.glob("*.aux"))
-        if auxes:
-            return _merge([a.read_text(errors="replace") for a in auxes], aux=True)
-        tex = sorted(p.rglob("*.tex"))
+        auxes, tex = sorted(p.glob("*.aux")), sorted(p.rglob("*.tex"))
+        if auxes and not _stale(auxes, tex):
+            return _merge([a.read_text(errors="replace") for a in _aux_closure(p, auxes)], aux=True)
         roots = [t for t in tex if "\\documentclass" in t.read_text(errors="replace")]
         files = []
         for r in roots:

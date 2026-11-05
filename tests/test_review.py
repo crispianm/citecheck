@@ -1,6 +1,10 @@
 """Regression tests for review findings (one class per item)."""
 import os
+import shutil
+import tempfile
+import time
 import unittest
+from pathlib import Path
 
 try:
     from test_core import Base, http_error
@@ -248,6 +252,35 @@ class Item26Venues(unittest.TestCase):
     def test_unknown_acronym_whole_word(self):
         self.assertEqual(self.cmp("Symposium on Foo Things (FOOS)", "FOOS (2)"), [])
         self.assertTrue(self.cmp("Symposium on Foo Things (FOO)", "FOOS (2)"))  # control: not a whole word
+
+
+class Item27Aux(unittest.TestCase):
+    def setUp(self):
+        self.d = Path(tempfile.mkdtemp(dir=os.environ.get("TMPDIR")))
+        self.addCleanup(shutil.rmtree, self.d, True)
+
+    def w(self, name, text, age=0):
+        f = self.d / name
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(text)
+        t = time.time() - age
+        os.utime(f, (t, t))
+
+    def test_stale_aux_ignored(self):
+        self.w("main.aux", "\\citation{a}\n", age=100)
+        self.w("main.tex", "\\documentclass{article}\\cite{a,b}", age=0)
+        self.assertEqual(latex.cited_keys(self.d), {"a", "b"})
+
+    def test_fresh_aux_used(self):  # control
+        self.w("main.tex", "\\documentclass{article}\\cite{a}", age=100)
+        self.w("main.aux", "\\citation{a}\n\\citation{z}\n", age=0)
+        self.assertEqual(latex.cited_keys(self.d), {"a", "z"})
+
+    def test_follows_at_input(self):
+        self.w("main.tex", "\\documentclass{article}", age=100)
+        self.w("main.aux", "\\@input{chapters/ch1.aux}\n\\citation{a}\n", age=0)
+        self.w("chapters/ch1.aux", "\\citation{c}\n", age=0)
+        self.assertEqual(latex.cited_keys(self.d), {"a", "c"})
 
 
 if __name__ == "__main__":
