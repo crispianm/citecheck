@@ -2,6 +2,7 @@
 import re
 
 from .bib import detex
+from .lint import check_title
 from .match import JOURNALS, arxiv_of, bib_venue_raw, canon
 
 
@@ -19,9 +20,17 @@ def _title(rec_title, orig):
         return "{" + t + "}"
     for g in dict.fromkeys(groups):
         g = _esc(g)
-        if g in t and "{" + g + "}" not in t:
-            t = t.replace(g, "{" + g + "}", 1)
+        if "{" + g + "}" not in t:
+            t = _brace(t, g, 1)
+    for w in check_title(t):  # acronyms / CamelCase must pass our own lint
+        t = _brace(t, w, 0)
     return t
+
+
+def _brace(t, g, count):
+    """Wrap whole-word occurrences of g in {} (first only if count == 1)."""
+    pat = (r"(?<![\w{])" if g[:1].isalnum() else "") + re.escape(g) + (r"(?![\w}])" if g[-1:].isalnum() else "")
+    return re.sub(pat, lambda m: "{" + m.group() + "}", t, count=count)
 
 
 def _kind(rec, hint):

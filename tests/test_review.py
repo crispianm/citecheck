@@ -1,7 +1,7 @@
 """Regression tests for review findings (one class per item)."""
 import unittest
 
-from citecheck import bib, cli
+from citecheck import bib, cli, fix, lint
 
 
 class Item11SplitEntries(unittest.TestCase):
@@ -22,6 +22,19 @@ class Item11SplitEntries(unittest.TestCase):
         t = "% @article{old, title={X}}\n@article{k, title={Y}}\n"
         self.assertEqual([k for k, _, _ in cli.split_entries(t)], ["k"])
         self.assertEqual(cli.split_entries("  @misc{a, title={X}}")[0][1], 2)  # control: indented is fine
+
+
+class Item12FixTitle(unittest.TestCase):
+    def test_group_not_restored_inside_word(self):
+        t = fix._title("Contrastive Learning with C", "Contrastive Learning with {C}")
+        self.assertEqual(t, "Contrastive Learning with {C}")
+
+    def test_suggested_entry_passes_own_lint(self):
+        rec = {"authors": ["A B"], "title": "ImageNet Classification with CNN and GANs", "venue": "CVPR",
+               "raw_venue": "CVPR", "year": 2020, "key": "conf/cvpr/x"}
+        out = bib.parse_bib(fix.to_bibtex("k", "inproceedings", rec, {"title": "ImageNet Classification"}))[0]
+        self.assertEqual(lint.check_title(out["title"]), [])
+        self.assertIn("{ImageNet}", out["title"])
 
 
 if __name__ == "__main__":
