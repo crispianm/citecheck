@@ -280,6 +280,14 @@ def venue_same(bv, rv, source):
     return False
 
 
+def rec_kind(rec):
+    """'article' / 'inproceedings' from a DBLP key or Crossref/OpenAlex type; None if unknown or arXiv."""
+    k = rec.get("key") or ""
+    if rec.get("source") in ("dblp", "dblp+s2", "dblp via s2") and not k.startswith("journals/corr"):
+        return "article" if k.startswith("journals/") else "inproceedings" if k.startswith("conf/") else None
+    return rec.get("kind") if rec.get("kind") in ("article", "inproceedings") else None
+
+
 def compare(e, rec, cr):
     """Return (errors, notes, published). `published` is the issue text when the bib cites the
     arXiv preprint but the record has a venue version; then year/pages/volume/doi are not compared."""
@@ -325,6 +333,11 @@ def compare(e, rec, cr):
         bdoi = (e.get("doi") or "").strip().lower()
         if bdoi and rec["doi"] and bdoi != rec["doi"].lower() and "arxiv" not in rec["doi"].lower():
             diffs.append(f"doi: bib {bdoi} vs {rec['doi']}")
+    rk = rec_kind(rec)
+    if not published and bv != "arXiv" and rk and e["type"] in ("article", "inproceedings") and e["type"] != rk:
+        notes.append("entry type: @%s but record is %s (use @%s + %s)" % (
+            e["type"], "a conference paper" if rk == "inproceedings" else "a journal article",
+            rk, "booktitle" if rk == "inproceedings" else "journal"))
     surs, truncated = bib_surnames(e.get("author", ""))
     rs = [name_surname(a) for a in rec["authors"]]
     for i, s in enumerate(surs):

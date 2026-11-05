@@ -7,7 +7,7 @@ try:
 except ImportError:  # run as tests.test_review
     from tests.test_core import Base
 
-from citecheck import bib, cli, dblp_index, fix, latex, lint
+from citecheck import bib, cli, dblp_index, fix, latex, lint, match
 
 
 class Item11SplitEntries(unittest.TestCase):
@@ -117,6 +117,25 @@ class Item21FillMissing(Base):
 
     def test_parser_flag(self):
         self.assertTrue(cli.build_parser().parse_args(["check", "x.bib", "--fill-missing"]).fill_missing)
+
+
+class Item22EntryType(Base):
+    HE = " author={Kaiming He and Xiangyu Zhang and Shaoqing Ren and Jian Sun},\n title={Deep Residual Learning for Image Recognition},\n"
+
+    def test_article_citing_conference_paper(self):
+        e = self.run_check("@article{a,\n" + self.HE + " journal={CVPR},\n pages={770--778},\n year={2016}}").entries[0]
+        self.assertEqual(e.status, "note")
+        self.assertTrue(any("conference paper" in n for n in e.notes), e.notes)
+
+    def test_inproceedings_citing_journal_article(self):
+        e = self.run_check("@inproceedings{a,\n author={J\\\"urgen M\\\"uller and Sam Smith},\n"
+                           " title={Sparse Depth Completion in the Wild},\n booktitle={IEEE Trans. Pattern Anal. Mach. Intell.},\n"
+                           " year={2020}, volume={42}, pages={100--110}}").entries[0]
+        self.assertTrue(any("journal article" in n for n in e.notes), e.notes)
+
+    def test_matching_types_no_note(self):  # control
+        e = self.run_check("@inproceedings{a,\n" + self.HE + " booktitle={CVPR},\n pages={770--778},\n year={2016}}").entries[0]
+        self.assertEqual((e.status, e.notes), ("ok", []))
 
 
 if __name__ == "__main__":
