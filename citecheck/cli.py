@@ -104,23 +104,9 @@ def _index_age_days(built):
 
 
 def split_entries(text):
-    """[(key, start, end)] for each @type{key, ...} block, by brace matching."""
-    out = []
-    for m in re.finditer(r"@(\w+)\s*([{(])\s*([^,\s{}]+)\s*,", text):
-        if m.group(1).lower() in ("comment", "string", "preamble"):
-            continue
-        depth, i = 0, m.start(2)
-        while i < len(text):
-            ch = text[i]
-            if ch == "{":
-                depth += 1
-            elif ch == "}":
-                depth -= 1
-                if depth == 0:
-                    break
-            i += 1
-        out.append((m.group(3), m.start(), min(i + 1, len(text))))
-    return out
+    """[(key, start, end)] for each @type{key, ...} or @type(key, ...) block."""
+    from citecheck.bib import entry_spans
+    return [(key, a, b) for _, key, a, _, b in entry_spans(text)]
 
 
 def write_fixed(bib, result, force=False):

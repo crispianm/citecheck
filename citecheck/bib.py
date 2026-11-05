@@ -31,18 +31,40 @@ def clean_title(t):
     return norm_title(t)
 
 
+_ENTRY = re.compile(r"^[ \t]*(@(\w+)\s*([{(])\s*([^,\s{}()]+)\s*,)", re.M)
+
+
+def entry_spans(text):
+    """[(type, key, start, body_start, end)] for each @type{key, ...} or @type(key, ...) entry.
+    `start` is the '@'; `end` is just past the closing delimiter."""
+    out = []
+    for m in _ENTRY.finditer(text):
+        if m.group(2).lower() in ("string", "comment", "preamble"):
+            continue
+        paren, i, depth, quote = m.group(3) == "(", m.end(), 0, False
+        while i < len(text):
+            ch = text[i]
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                if depth == 0 and not paren:
+                    break
+                depth -= 1
+            elif ch == '"' and depth == 0 and paren:
+                quote = not quote
+            elif ch == ")" and depth == 0 and not quote and paren:
+                break
+            i += 1
+        out.append((m.group(2).lower(), m.group(4), m.start(1), m.end(), min(i + 1, len(text))))
+    return out
+
+
 def parse_bib(text):
     """Return list of dicts with 'type', 'key' and lowercased field names."""
     out = []
-    for m in re.finditer(r"^[ \t]*@(\w+)\s*\{\s*([^,\s]+)\s*,", text, re.M):
-        if m.group(1).lower() in ("string", "comment", "preamble"):
-            continue
-        i, depth, body_start = m.end(), 1, m.end()
-        while i < len(text) and depth:
-            depth += {"{": 1, "}": -1}.get(text[i], 0)
-            i += 1
-        body = text[body_start:i - 1]
-        e = {"type": m.group(1).lower(), "key": m.group(2)}
+    for typ, key, _, body_start, end in entry_spans(text):
+        body = text[body_start:end - 1]
+        e = {"type": typ, "key": key}
         j = 0
         while True:
             fm = _FIELD.match(body, j)
