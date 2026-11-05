@@ -28,7 +28,7 @@ def fold(s):
 
 
 def clean_title(t):
-    t = re.sub(r"\$[^$]*\$", "", t)          # math, e.g. NVDS$^{+}$
+    t = re.sub(r"\$([^$]*)\$", lambda m: re.sub(r"\\[A-Za-z]+|\\.", "", m.group(1)), t)  # math keeps letters/digits: $L_2$ -> L2
     t = re.sub(r"\\[A-Za-z]+|\\.", "", t)    # leftover TeX commands
     return norm_title(t)
 

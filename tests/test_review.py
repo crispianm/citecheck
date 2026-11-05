@@ -160,5 +160,18 @@ class Item23GivenNames(unittest.TestCase):
             self.assertEqual(self.notes(b, [r]), [], (b, r))
 
 
+class Item24Math(unittest.TestCase):
+    def test_math_alphanumerics_kept(self):
+        ct = lambda s: bib.clean_title(bib.detex(s))  # noqa: E731
+        self.assertEqual(ct("$L_2$-Net: Deep Learning"), ct("L2-Net: Deep Learning"))
+        self.assertEqual(ct("Voronoi of $\\mathbb{R}^3$"), ct("Voronoi of $\\mathbb{R}^3$"))
+        self.assertEqual(ct("Voronoi of $\\mathbb{R}^3$"), ct("Voronoi of R3"))
+        self.assertEqual(ct("$\\alpha$-nDCG"), ct("\u03b1-nDCG"))
+        self.assertEqual(ct("NVDS$^{+}$"), ct("NVDS+"))
+
+    def test_different_titles_still_differ(self):  # control
+        self.assertNotEqual(bib.clean_title("$L_2$-Net"), bib.clean_title("L3-Net"))
+
+
 if __name__ == "__main__":
     unittest.main()
