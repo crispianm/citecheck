@@ -98,18 +98,35 @@ def parse_bib(text):
     return out
 
 
-def bib_surnames(author_field):
+def _bib_names(author_field):
+    """[(surname, given)] and whether the list is truncated by 'and others'."""
     names = [a.strip() for a in re.split(r"\s+and\s+", detex(author_field), flags=re.I) if a.strip()]
     truncated = bool(names) and names[-1].lower() == "others"
     if truncated:
         names = names[:-1]
-    sur = []
+    out = []
     for n in names:
         if "," in n:
-            sur.append(n.split(",")[0].strip())
+            sur, _, given = n.partition(",")
+            out.append((sur.strip(), given.split(",")[-1].strip()))
         else:
-            sur.append(n.split()[-1])
-    return sur, truncated
+            parts = n.split()
+            out.append((parts[-1], " ".join(parts[:-1])))
+    return out, truncated
+
+
+def bib_surnames(author_field):
+    names, truncated = _bib_names(author_field)
+    return [s for s, _ in names], truncated
+
+
+def bib_givens(author_field):
+    return [g for _, g in _bib_names(author_field)[0]]
+
+
+def name_given(full):
+    full = re.sub(r"\s+\d{4}$", "", full.strip())
+    return " ".join(full.split()[:-1])
 
 
 def name_surname(full):

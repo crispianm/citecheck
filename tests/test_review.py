@@ -138,5 +138,27 @@ class Item22EntryType(Base):
         self.assertEqual((e.status, e.notes), ("ok", []))
 
 
+class Item23GivenNames(unittest.TestCase):
+    def notes(self, bib_authors, rec_authors):
+        rec = {"title": "T", "venue": "CVPR", "raw_venue": "CVPR", "source": "dblp", "key": "conf/x/Y", "year": 2020,
+               "pages": None, "volume": None, "doi": None, "authors": rec_authors}
+        e = {"type": "inproceedings", "title": "T", "booktitle": "CVPR", "year": "2020", "author": bib_authors}
+        errs, notes, _ = match.compare(e, rec, None)
+        self.assertEqual(errs, [])
+        return [n for n in notes if "given" in n]
+
+    def test_wrong_initial(self):
+        n = self.notes("Wang, Y. and Li, Z.", ["Xintao Wang", "Zhe Li"])
+        self.assertEqual(len(n), 1)
+        self.assertIn("#1", n[0])
+
+    def test_matching_forms_no_note(self):  # controls
+        for b, r in [("Wang, X.", "Xintao Wang"), ("Xintao Wang", "Xintao Wang"), ("W. Wang", "Wei Wang 0001"),
+                     ("Wang", "Wei Wang"), ("Smith, J.-P.", "Jean-Pierre Smith"), ("Jean-Pierre Smith", "J.-P. Smith"),
+                     ("\\'{E}mile Zola", "Emile Zola"), ("van den Berg, Jan", "Jan van den Berg"),
+                     ("Wang, X. Y.", "Xintao Wang")]:
+            self.assertEqual(self.notes(b, [r]), [], (b, r))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -3,7 +3,7 @@ import re
 from difflib import SequenceMatcher
 
 from . import dblp_index
-from .bib import bib_surnames, clean_title, detex, fold, name_surname, surname_match
+from .bib import bib_givens, bib_surnames, clean_title, detex, fold, name_given, name_surname, surname_match
 
 TITLE_MIN = 0.92
 LOOSE_MIN = 0.75  # S2 title similarity that counts as a "loose" match worth re-querying DBLP with
@@ -350,6 +350,10 @@ def compare(e, rec, cr):
                          f"(record: {'; '.join(rec['authors'])})")
             break
     else:
+        for i, g in enumerate(bib_givens(e.get("author", ""))):
+            rg = name_given(rec["authors"][i]) if i < len(rs) else ""
+            if fold(g)[:1] and fold(rg)[:1] and fold(g)[:1] != fold(rg)[:1] and surname_match(surs[i], rs[i]):
+                notes.append(f"author #{i + 1} given name: bib '{g}' vs record '{rg}'")
         if not truncated and len(surs) != len(rs) and rs:
             diffs.append(f"authors: bib lists {len(surs)}, record has {len(rs)} "
                          f"(record: {'; '.join(rec['authors'])})")
