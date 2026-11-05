@@ -292,6 +292,13 @@ def lookup(conn, title, author=None, limit=5):
     return out[:limit]
 
 
+def by_doi(conn, doi):
+    """DBLP records with exactly this DOI (as dicts, score 1.0)."""
+    doi = re.sub(r"^https?://(dx\.)?doi\.org/", "", (doi or "").strip().lower())
+    rows = conn.execute("SELECT * FROM pubs WHERE doi=? LIMIT 5", (doi,)) if doi else []
+    return [dict(r, score=1.0) for r in rows]
+
+
 def stats(conn):
     """Meta rows plus 'types' (record counts by type). 'mode' defaults to 'full'."""
     d = {k: v for k, v in conn.execute("SELECT k, v FROM meta")}

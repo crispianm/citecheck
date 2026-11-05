@@ -3,11 +3,11 @@ import os
 import unittest
 
 try:
-    from test_core import Base
+    from test_core import Base, http_error
 except ImportError:  # run as tests.test_review
-    from tests.test_core import Base
+    from tests.test_core import Base, http_error
 
-from citecheck import bib, cli, dblp_index, fix, latex, lint, match
+from citecheck import bib, cli, dblp_index, fix, latex, lint, match, sources
 
 
 class Item11SplitEntries(unittest.TestCase):
@@ -171,6 +171,50 @@ class Item24Math(unittest.TestCase):
 
     def test_different_titles_still_differ(self):  # control
         self.assertNotEqual(bib.clean_title("$L_2$-Net"), bib.clean_title("L3-Net"))
+
+
+class Item25DoiAndArxivId(Base):
+    HE = ("author={Kaiming He and Xiangyu Zhang and Shaoqing Ren and Jian Sun},\n")
+
+    def fake(self, urls):
+        def f(url, headers=None, timeout=30):
+            urls.append(url)
+            if "ARXIV:1512.03385" in url or "ARXIV%3A1512.03385" in url:
+                return {"paperId": "p1", "title": "Deep Residual Learning for Image Recognition", "year": 2016,
+                        "venue": "CVPR", "authors": [{"name": "Kaiming He"}, {"name": "Xiangyu Zhang"}],
+                        "externalIds": {"DOI": "10.1109/CVPR.2016.90", "ArXiv": "1512.03385"}}
+            raise http_error(404)
+        return f
+
+    def test_doi_finds_record_when_title_differs(self):
+        sources.fetch = self.fake([])
+        e = self.run_check("@inproceedings{a,\n " + self.HE + " title={Residual Nets for Images},\n booktitle={CVPR},\n"
+                           " year={2016},\n doi={10.1109/CVPR.2016.90}}", offline=False, no_s2=True).entries[0]
+        self.assertEqual(e.record_key, "conf/cvpr/HeZRS16")
+        self.assertTrue(any(i.startswith("title:") for i in e.issues), e.issues)
+
+    def test_wrong_doi_not_found_control(self):
+        sources.fetch = self.fake([])
+        e = self.run_check("@inproceedings{a,\n " + self.HE + " title={Residual Nets for Images},\n booktitle={CVPR},\n"
+                           " year={2016},\n doi={10.1109/NOPE.1}}", offline=False, no_s2=True).entries[0]
+        self.assertEqual(e.status, "manual")
+
+    def test_arxiv_id_finds_published_version(self):
+        urls = []
+        sources.fetch = self.fake(urls)
+        e = self.run_check("@misc{a,\n " + self.HE + " title={Residual Nets for Images},\n"
+                           " howpublished={arXiv preprint arXiv:1512.03385},\n year={2015},\n eprint={1512.03385}}",
+                           offline=False).entries[0]
+        self.assertEqual(e.record_key, "conf/cvpr/HeZRS16")
+        self.assertTrue(any("published at CVPR" in i for i in e.issues), e.issues)
+        self.assertTrue(any("ARXIV" in u for u in urls))
+
+    def test_arxiv_id_offline_is_cache_only(self):
+        urls = []
+        sources.fetch = self.fake(urls)
+        self.run_check("@misc{a,\n " + self.HE + " title={Residual Nets for Images},\n howpublished={arXiv:1512.03385},\n"
+                       " year={2015},\n eprint={1512.03385}}")
+        self.assertEqual(urls, [])
 
 
 if __name__ == "__main__":

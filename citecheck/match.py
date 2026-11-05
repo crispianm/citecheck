@@ -214,6 +214,27 @@ def _accept(cands, title, first):
             yield r
 
 
+def arxiv_id_of(e):
+    """arXiv id the bib entry cites (eprint, journal/howpublished 'arXiv:XXXX', or 10.48550 DOI), else None."""
+    blob = " ".join(e.get(f) or "" for f in ("eprint", "journal", "howpublished", "note", "doi", "url"))
+    m = re.search(r"(?:arxiv[:./ ]+|^|\s)(\d{4}\.\d{4,5})(?:v\d+)?", blob, re.I) or re.search(r"arxiv[:./ ]+([a-z\-]+/\d{7})", blob, re.I)
+    return m.group(1) if m else None
+
+
+def _by_doi(conn, doi, title):
+    """(published, preprint) DBLP records with this DOI."""
+    pub = pre = None
+    for d in dblp_index.by_doi(conn, doi) if conn is not None else []:
+        if d["type"] != "proceedings":
+            r = dblp_rec(d, None)
+            r["score"] = title_score(title, r["title"])
+            if r["venue"] == "arXiv":
+                pre = pre or r
+            else:
+                pub = pub or r
+    return pub, pre
+
+
 def find(conn, src, e):
     """DBLP first. Then S2 (a loose match is fed back into DBLP), then Crossref, then OpenAlex."""
     title = detex(e.get("title", ""))
@@ -221,11 +242,31 @@ def find(conn, src, e):
     first = surs[0] if surs else None
     bv = canon(bib_venue_raw(e))
 
-    pub, pre = dblp_search(conn, title, first, dataset=e["type"] == "misc", surs=surs)
+    pub, pre = _by_doi(conn, e.get("doi") or "", title)  # a DOI names the record exactly
+    if not pub:
+        pub, pre2 = dblp_search(conn, title, first, dataset=e["type"] == "misc", surs=surs)
+        pre = pre or pre2
+    aid = arxiv_id_of(e) if bv == "arXiv" else None
     if pub:
         return fill_gaps(pub, e, src)
-    if pre and bv == "arXiv":
+    if pre and bv == "arXiv" and not aid:
         return pre
+    if aid:
+        # Cited as arXiv with an id: S2 knows the published version even if the title changed.
+        p = src.s2.by_id("ARXIV:" + aid)
+        sr = s2_rec(p) if p else None
+        if sr and sr["venue"] not in ("", "arXiv"):
+            s2_first = name_surname(sr["authors"][0]) if sr["authors"] else None
+            hit = _by_doi(conn, sr["doi"], title)[0] or dblp_search(conn, sr["title"], s2_first)[0]
+            if hit:
+                hit["source"] = "dblp via s2"
+                hit["filled"] = [f"published version found via arXiv id {aid} (S2)"]
+                return hit
+            sr["score"] = title_score(title, sr["title"])
+            sr["filled"] = [f"published version found via arXiv id {aid} (S2); not in DBLP"]
+            return sr
+        if pre:
+            return pre
     if pre:
         # DBLP knows only the preprint, so the published venue is a gap: S2 may fill it.
         p = src.s2.match(title)

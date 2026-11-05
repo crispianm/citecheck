@@ -109,6 +109,20 @@ class S2(Client):
         self.cache.put(title, res)
         return res
 
+    def by_id(self, ident):
+        """S2 paper (dict) for 'ARXIV:1512.03385' or 'DOI:10.x/y', or None. Cached."""
+        k = "id:" + ident.lower()
+        if k in self.cache:
+            return self.cache.get(k)
+        url = S2_URL.replace("/search/match", "/" + urllib.parse.quote(ident, safe=":/")) + "?" + \
+            urllib.parse.urlencode({"fields": S2_FIELDS})
+        done, data = self.call(url, {"x-api-key": self.key} if self.key else None)
+        if not done:
+            return None
+        res = data if data and data.get("title") else None
+        self.cache.put(k, res)
+        return res
+
 
 def _first(v):
     return v[0] if isinstance(v, list) and v else (v if isinstance(v, str) else "")
