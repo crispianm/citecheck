@@ -16,6 +16,7 @@ def detex(s):
     s = re.sub(r"\\([cvuH])\s*\{([A-Za-z])\}", lambda m: m.group(2) + ACCENTS[m.group(1)], s)
     s = re.sub(r"\\(ss|o|O|l|L|aa|AA|ae|AE)\b", lambda m: {"ss": "ss", "o": "o", "O": "O", "l": "l", "L": "L",
                "aa": "a", "AA": "A", "ae": "ae", "AE": "AE"}[m.group(1)], s)
+    s = re.sub(r"\\[A-Za-z]+\s*\{", "{", s)  # \emph{in situ} -> in situ (not "\emphin")
     s = s.replace("{", "").replace("}", "").replace("\\&", "&").replace("~", " ")
     return unicodedata.normalize("NFC", re.sub(r"\s+", " ", s)).strip()
 

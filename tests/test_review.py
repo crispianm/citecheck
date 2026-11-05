@@ -45,5 +45,11 @@ class Item13Comments(unittest.TestCase):
         self.assertEqual(latex._from_tex("50\\% \\cite{a}"), {"a"})
 
 
+class Item14TextMacros(unittest.TestCase):
+    def test_emph_keeps_first_word(self):
+        self.assertEqual(bib.detex("Imaging \\emph{in situ} cells"), "Imaging in situ cells")
+        self.assertEqual(bib.clean_title(bib.detex("\\textbf{Fast} \\emph{in situ}")), bib.clean_title("Fast in situ"))
+
+
 if __name__ == "__main__":
     unittest.main()
