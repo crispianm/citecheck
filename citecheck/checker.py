@@ -7,7 +7,7 @@ from . import dblp_index
 from .bib import parse_bib
 from .fix import to_bibtex
 from .lint import lint_all
-from .match import bib_venue_raw, canon, compare, find
+from .match import NO_PAGES_STYLE, bib_venue_raw, canon, compare, find
 from .sources import Sources
 
 STATUSES = ("mismatch", "retracted", "manual", "published", "note", "ok")
@@ -27,6 +27,7 @@ class EntryResult:
     issues: List[str] = field(default_factory=list)
     notes: List[str] = field(default_factory=list)
     suggested_bibtex: Optional[str] = None
+    fill_only: bool = False  # suggestion only adds missing pages/volume/doi (status stays note)
 
 
 @dataclass
@@ -54,6 +55,13 @@ def _url(rec):
     return "https://doi.org/" + rec["doi"] if rec.get("doi") else ""
 
 
+def _fills(e, rec, bv):
+    """True if the record has pages/volume/doi that the bib entry lacks."""
+    miss = lambda f: rec.get(f) and not (e.get(f) or "").strip()  # noqa: E731
+    return bool(miss("volume") or (miss("pages") and bv not in NO_PAGES_STYLE)
+                or (miss("doi") and "arxiv" not in rec["doi"].lower()))
+
+
 def check_entry(conn, src, e):
     """EntryResult (without lint notes) for one parsed bib entry."""
     rec = find(conn, src, e)
@@ -78,6 +86,9 @@ def check_entry(conn, src, e):
         r.doi, r.title, r.url = rec.get("doi") or "", rec["title"], _url(rec)
         if r.status in ("mismatch", "published") and rec["authors"]:
             r.suggested_bibtex = to_bibtex(e["key"], e["type"], rec, e)
+        elif r.status == "note" and rec["authors"] and _fills(e, rec, bv) and \
+                not any("spelled" in n or "accepted" in n for n in r.notes):  # variants stay as written
+            r.suggested_bibtex, r.fill_only = to_bibtex(e["key"], e["type"], rec, e), True
     # retraction: only with a DOI, and only if a source answers (offline = cache only)
     why = src.retraction((e.get("doi") or "").strip() or r.doi)
     if not why and rec and rec.get("retracted"):

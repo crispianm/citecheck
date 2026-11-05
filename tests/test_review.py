@@ -1,4 +1,5 @@
 """Regression tests for review findings (one class per item)."""
+import os
 import unittest
 
 try:
@@ -91,6 +92,31 @@ class Item17FtsQuote(Base):
         conn = dblp_index.connect(self.full)
         dblp_index.lookup(conn, "Attention Is All You Need Really", author='O"Neil')
         dblp_index.lookup(conn, 'Attention "Is" All You Need Really', author="Vaswani")
+
+
+class Item21FillMissing(Base):
+    BIB = ("@inproceedings{nopages,\n author={Kaiming He and Xiangyu Zhang and Shaoqing Ren and Jian Sun},\n"
+           " title={Deep Residual Learning for Image Recognition},\n booktitle={CVPR},\n year={2016}}\n")
+
+    def test_note_gets_suggestion_applied_only_on_request(self):
+        e = self.run_check(self.BIB).entries[0]
+        self.assertEqual(e.status, "note")
+        self.assertIn("pages     = {770--778}", e.suggested_bibtex or "")
+        p = self.dir / "fm.bib"
+        p.write_text(self.BIB)
+        res = self.run_check(self.BIB)
+        t = cli.write_fixed(p, res, force=True).read_text()
+        self.assertNotIn("770", t)  # default: only mismatch/published are applied
+        t = cli.write_fixed(p, res, force=True, fill_missing=True).read_text()
+        self.assertIn("770--778", t)
+
+    def test_spelling_variant_not_filled(self):  # control: accepted variants are not rewritten
+        e = self.run_check(self.BIB.replace("Kaiming He", "Kaiming Hee")).entries[0]
+        self.assertEqual(e.status, "note")
+        self.assertIsNone(e.suggested_bibtex)
+
+    def test_parser_flag(self):
+        self.assertTrue(cli.build_parser().parse_args(["check", "x.bib", "--fill-missing"]).fill_missing)
 
 
 if __name__ == "__main__":

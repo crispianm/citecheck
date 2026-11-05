@@ -72,6 +72,8 @@ def build_parser():
     c.add_argument("--strict", action="store_true", help="manual entries also fail (exit 1)")
     c.add_argument("--write-fixed", action="store_true",
                    help="write <bib>.fixed.bib with suggested entries (never overwrites the original)")
+    c.add_argument("--fill-missing", action="store_true",
+                   help="with --write-fixed, also add missing pages/volume/doi to entries that only have notes")
     c.add_argument("--force", action="store_true", help="overwrite an existing .fixed.bib")
     c.add_argument("--db", metavar="F", help="DBLP SQLite index (default: from config)")
     c.add_argument("-v", "--verbose", action="store_true", help="list entries that only have notes")
@@ -109,13 +111,14 @@ def split_entries(text):
     return [(key, a, b) for _, key, a, _, b in entry_spans(text)]
 
 
-def write_fixed(bib, result, force=False):
+def write_fixed(bib, result, force=False, fill_missing=False):
     bib = Path(bib)
     target = bib.with_name(bib.stem + ".fixed.bib")
     if target.exists() and not force:
         _err("refusing to overwrite %s (use --force)" % target)
         return None
-    sugg = {e.key: e.suggested_bibtex for e in result.entries if e.suggested_bibtex}
+    sugg = {e.key: e.suggested_bibtex for e in result.entries
+            if e.suggested_bibtex and (fill_missing or not getattr(e, "fill_only", False))}
     text = bib.read_text(encoding="utf-8", errors="replace")
     for key, a, b in reversed(split_entries(text)):
         if key in sugg:
@@ -186,7 +189,7 @@ def cmd_check(a):
             report.write_html(res, out / (stem + ".html"))
             _err("reports written to %s" % out)
         if a.write_fixed:
-            t = write_fixed(bib, res, a.force)
+            t = write_fixed(bib, res, a.force, a.fill_missing)
             if t:
                 _err("wrote %s" % t)
             else:
