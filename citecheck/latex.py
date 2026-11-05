@@ -9,7 +9,7 @@ _NOT_CITES = {"citestyle", "citeindexfalse"}
 
 
 def _strip_comments(s):
-    return re.sub(r"(?<!\\)%.*", "", s)
+    return re.sub(r"(?<!\\)((?:\\\\)*)%.*", r"\1", s)  # % after an even run of backslashes
 
 
 def _split(keys):

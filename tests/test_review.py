@@ -1,7 +1,7 @@
 """Regression tests for review findings (one class per item)."""
 import unittest
 
-from citecheck import bib, cli, fix, lint
+from citecheck import bib, cli, fix, latex, lint
 
 
 class Item11SplitEntries(unittest.TestCase):
@@ -35,6 +35,14 @@ class Item12FixTitle(unittest.TestCase):
         out = bib.parse_bib(fix.to_bibtex("k", "inproceedings", rec, {"title": "ImageNet Classification"}))[0]
         self.assertEqual(lint.check_title(out["title"]), [])
         self.assertIn("{ImageNet}", out["title"])
+
+
+class Item13Comments(unittest.TestCase):
+    def test_percent_after_double_backslash_is_comment(self):
+        self.assertEqual(latex._from_tex("a\\\\% \\cite{old}\n\\cite{new}"), {"new"})
+
+    def test_escaped_percent_is_not_comment(self):  # control
+        self.assertEqual(latex._from_tex("50\\% \\cite{a}"), {"a"})
 
 
 if __name__ == "__main__":
