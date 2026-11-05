@@ -9,6 +9,12 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
         python: ["3.9", "3.13"]
+        exclude:  # setup-python has no 3.9 build for the newest Ubuntu image
+          - os: ubuntu-latest
+            python: "3.9"
+        include:
+          - os: ubuntu-22.04
+            python: "3.9"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

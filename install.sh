@@ -131,6 +131,8 @@ ok "wrote $SHIM"
 case ":$PATH:" in
   *":$BIN_DIR:"*) ok "$BIN_DIR is on your PATH" ;;
   *)
+    # single quotes on purpose: the rc line must expand at shell start, not now
+    # shellcheck disable=SC2016
     case "$(basename "${SHELL:-bash}")" in
       zsh)  RC="$HOME/.zshrc";  LINE='export PATH="$HOME/.local/bin:$PATH"' ;;
       fish) RC="$HOME/.config/fish/config.fish"; LINE='fish_add_path $HOME/.local/bin' ;;
