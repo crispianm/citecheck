@@ -12,6 +12,7 @@ _COMMA = re.compile(r"\s*,")
 
 
 def detex(s):
+    s = re.sub(r"\\([ij])(?![A-Za-z])", r"\1", s)  # dotless \i \j, so {\'\i} -> {\'i}
     s = re.sub(r"\\([`'\"^~=.])\s*\{?([A-Za-z])\}?", lambda m: m.group(2) + ACCENTS[m.group(1)], s)
     s = re.sub(r"\\([cvuH])\s*\{([A-Za-z])\}", lambda m: m.group(2) + ACCENTS[m.group(1)], s)
     s = re.sub(r"\\(ss|o|O|l|L|aa|AA|ae|AE)\b", lambda m: {"ss": "ss", "o": "o", "O": "O", "l": "l", "L": "L",

@@ -51,5 +51,14 @@ class Item14TextMacros(unittest.TestCase):
         self.assertEqual(bib.clean_title(bib.detex("\\textbf{Fast} \\emph{in situ}")), bib.clean_title("Fast in situ"))
 
 
+class Item15DotlessI(unittest.TestCase):
+    def test_dotless(self):
+        for src in ("Garc{\\'\\i}a", "Garc\\'{\\i}a", "Garc{\\'i}a"):
+            self.assertEqual(bib.fold(bib.detex(src)), "garcia", src)
+        self.assertEqual(bib.detex("Na\\\"{\\i}ve"), "Na\u00efve")
+        self.assertEqual(bib.detex("\\^{\\i}le"), "\u00eele")
+        self.assertEqual(bib.detex("\\v{\\j}"), "\u01f0")
+
+
 if __name__ == "__main__":
     unittest.main()
