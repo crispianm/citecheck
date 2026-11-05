@@ -272,6 +272,7 @@ def lookup(conn, title, author=None, limit=5):
         words = [w for w in re.findall(r"[A-Za-z0-9]+", title) if len(w) > 2][:12]
         if not words:
             return []
+        author = " ".join(re.findall(r"\w+", author or ""))  # no quotes: they break the MATCH syntax
         for op in (" AND ", " OR "):
             match = op.join(f'"{w}"' for w in words)
             if author:

@@ -1,7 +1,12 @@
 """Regression tests for review findings (one class per item)."""
 import unittest
 
-from citecheck import bib, cli, fix, latex, lint
+try:
+    from test_core import Base
+except ImportError:  # run as tests.test_review
+    from tests.test_core import Base
+
+from citecheck import bib, cli, dblp_index, fix, latex, lint
 
 
 class Item11SplitEntries(unittest.TestCase):
@@ -79,6 +84,13 @@ class Item16Surnames(unittest.TestCase):
         self.assertTrue(bib.surname_match("Al-Hashimi", "Hashimi"))
         self.assertTrue(bib.surname_match("M\u00fcller", "Muller"))
         self.assertTrue(bib.surname_match("McDonald", "Mc Donald"))
+
+
+class Item17FtsQuote(Base):
+    def test_quote_in_author_or_title(self):
+        conn = dblp_index.connect(self.full)
+        dblp_index.lookup(conn, "Attention Is All You Need Really", author='O"Neil')
+        dblp_index.lookup(conn, 'Attention "Is" All You Need Really', author="Vaswani")
 
 
 if __name__ == "__main__":
